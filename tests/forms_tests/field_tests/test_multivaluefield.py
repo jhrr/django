@@ -32,11 +32,11 @@ class ComplexMultiWidget(MultiWidget):
 
 class ComplexField(MultiValueField):
     def __init__(self, **kwargs):
-        fields = (
+        fields = kwargs.pop('fields', (
             CharField(),
             MultipleChoiceField(choices=beatles),
             SplitDateTimeField(),
-        )
+        ))
         super().__init__(fields, **kwargs)
 
     def compress(self, data_list):
@@ -172,3 +172,41 @@ class MultiValueFieldTest(SimpleTestCase):
         })
         form.is_valid()
         self.assertEqual(form.cleaned_data['field1'], 'some text,JP,2007-04-25 06:24:00')
+
+
+class MultiValueFieldTestRequired(SimpleTestCase):
+    maxDiff = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.field = ComplexField(
+            fields=(
+                CharField(),
+                MultipleChoiceField(choices=beatles, required=False),
+                SplitDateTimeField(required=False),
+            ),
+            require_all_fields=False)
+        super().setUpClass()
+
+    def test_required_attribute(self):
+        form = ComplexFieldForm({
+            'field1_0': 'some text',
+            'field1_1': None,
+            'field1_2_0': None,
+            'field1_2_1': None,
+        })
+        self.assertHTMLEqual(
+            form.as_table(),
+            """
+            <tr><th><label for="id_field1_0">Field1:</label></th>
+            <td><input id="id_field1_0" name="field1_0" required type="text" value="some text">
+            <select multiple name="field1_1" id="id_field1_1">
+            <option value="J">John</option>
+            <option value="P">Paul</option>
+            <option value="G">George</option>
+            <option value="R">Ringo</option>
+            </select>
+            <input type="text" name="field1_2_0" id="id_field1_2_0">
+            <input type="text" name="field1_2_1" id="id_field1_2_1"></td></tr>
+            """,
+        )
